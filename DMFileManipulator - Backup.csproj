@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+
+  <PropertyGroup>
+    <TargetFrameworks>netcoreapp3.1-windows</TargetFrameworks>
+	  <UseWindowsForms>true</UseWindowsForms>
+	  <StartupObject />
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="DMTagEditor.cs" />
+    <Compile Remove="DMTagExtractor.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DMTagEditor\DMTagEditor.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="taglib-sharp">
+      <HintPath>..\FirstFMCourse_Backup_3.1\packages\taglib.2.1.0.0\lib\taglib-sharp.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+</Project>
