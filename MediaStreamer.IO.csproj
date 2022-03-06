@@ -15,6 +15,7 @@
     <ProjectReference Include="..\LinqExtensions\LinqExtensions.csproj" />
     <ProjectReference Include="..\MediaStreamer.Domain\MediaStreamer.Domain.csproj" />
     <ProjectReference Include="..\MediaStreamer.TagEditor\MediaStreamer.TagEditor.csproj" />
+    <ProjectReference Include="..\taglib-sharp\src\TaglibSharp\TaglibSharp.csproj" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'net40'">
@@ -32,11 +33,5 @@
     </Reference>
     <!--<PackageReference Include="SharpZipLib" Version="1.3.3">
     </PackageReference>-->
-  </ItemGroup>
-	
-  <ItemGroup>
-    <Reference Include="taglib-sharp">
-      <HintPath>..\packages\taglib.2.1.0.0\lib\taglib-sharp.dll</HintPath>
-    </Reference>
   </ItemGroup>
 </Project>
