@@ -12,15 +12,18 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\XamarinFilePicker\FilePicker-Plugin-for-Xamarin-and-Windows\src\Plugin.FilePicker\Plugin.FilePicker.csproj" />
     <ProjectReference Include="..\LinqExtensions\LinqExtensions.csproj" />
     <ProjectReference Include="..\MediaStreamer.Domain\MediaStreamer.Domain.csproj" />
     <ProjectReference Include="..\MediaStreamer.TagEditor\MediaStreamer.TagEditor.csproj" />
     <ProjectReference Include="..\taglib-sharp\src\TaglibSharp\TaglibSharp.csproj" />
+    <ProjectReference Include="..\Win32DotNetWorkarounds\Win32DotNetWorkarounds.csproj" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'net40'">
     <Reference Include="Plugin.FilePicker">
-    <HintPath>..\..\XamarinFilePicker\FilePicker-Plugin-for-Xamarin-and-Windows\src\Plugin.FilePicker\bin\Release\net40\Plugin.FilePicker.Net40.dll</HintPath>
+    <!--<HintPath>..\..\XamarinFilePicker\FilePicker-Plugin-for-Xamarin-and-Windows\src\Plugin.FilePicker\bin\Release\net40\Plugin.FilePicker.Net40.dll</HintPath>-->
+		<HintPath>..\..\XamarinFilePicker\FilePicker-Plugin-for-Xamarin-and-Windows\src\Plugin.FilePicker\bin\Release\net40\Plugin.FilePicker.dll</HintPath>
     </Reference>
 	<Reference Include="PresentationFramework" />
 	<Reference Include="System.Windows.Forms" />

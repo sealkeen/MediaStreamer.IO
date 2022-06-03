@@ -6,6 +6,8 @@ using System.Diagnostics;
 using MediaStreamer.TagEditing;
 using System.Threading.Tasks;
 using Microsoft.Win32;
+using System.IO;
+using MediaStreamer.Logging;
 
 namespace MediaStreamer.IO
 {
@@ -20,17 +22,26 @@ namespace MediaStreamer.IO
             DBAccess = iDBAccess;
         }
 
-        public bool DecomposeAudioFile(string fileName, Action<string> errorAction = null)
+        /// <summary>
+        /// Returns null if error occured.
+        /// </summary>
+        /// <param name="fileName">The path to the composition's file.</param>
+        /// <param name="errorAction">An action that takes a string to log if something went wrong.</param>
+        /// <returns></returns>
+        public Composition DecomposeAudioFile(string fileName, Action<string> errorAction = null)
         {
             try
             {
+                $"Passed to decompose: {fileName}, existing : {File.Exists(fileName)}".LogStatically();
                 if (fileName == null || !System.IO.File.Exists(fileName))
                 {
-                    return false;
+                    return null;
                 }
+
+                $"Creating TagLib".LogStatically();
                 var tfile = TagLib.File.Create($"{fileName}");
 
-                //cmp.FilePath = openFileDialog1.FileName;
+                $"Fetching data from file...".LogStatically();
                 string artistFromFile = DMTagExtractor.TryGetArtistNameFromFile(tfile, errorAction);
                 string genreFromFile = DMTagExtractor.TryGetGenreFromFile(tfile, errorAction);
                 string titleFromFile = DMTagExtractor.TryGetTitleFromFile(tfile);
@@ -45,24 +56,31 @@ namespace MediaStreamer.IO
                     if ((newComposition = CreateNewComposition(fI.Name, fI.FullName, titleFromFile,
                         artistFromFile, genreFromFile, albumFromFile, duration, yearFromFile)) == null) {
                         errorAction?.Invoke($"The file does not have enough information to add a song.");
-                        return false;
+                        $"The file does not have enough information to add a song.".LogStatically();
+                        return null;
                     } else {
                         DMTagEditor.AddArtistToCompositionsSourceFile(newComposition.Artist.ArtistName, newComposition, errorAction);
                         DMTagEditor.AddTitleToCompositionsSourceFile(newComposition.CompositionName, newComposition, errorAction);
                     }
                 }
 
+                $"Adding Artist...".LogStatically();
                 var artist = DBAccess.AddArtist(artistFromFile, errorAction);
+                $"Adding Genre...".LogStatically();
                 var genre = DBAccess.AddGenreToArtist(artist, genreFromFile); //error
+                $"Adding Album...".LogStatically();
                 var album = DBAccess.AddAlbum(artist.ArtistName, albumFromFile, yearFromFile, null, null, errorAction);
+                $"Adding Composition...".LogStatically();
                 var composition = DBAccess.AddComposition(artist, album, titleFromFile, duration, fileName, null, false, errorAction);
                 DBAccess.DB.SaveChanges();
-                return true;
+
+                $"Composition is not null: {composition != null}, FilePath ok: {composition?.FilePath != null} ".LogStatically();
+                return composition;
             }
             catch (Exception ex)
             {
-                errorAction?.Invoke(ex.Message);
-                return false;
+                errorAction?.Invoke("MediaStreamer.IO: " + ex.Message);
+                return null;
             }
         }
 
@@ -73,12 +91,12 @@ namespace MediaStreamer.IO
             {
                 foreach (string audioFile in audioFiles)
                 {
-                    successfull = DecomposeAudioFile(audioFile) == true ? true : successfull;
+                    successfull = DecomposeAudioFile(audioFile) != null ? true : false;
                 }
             }
             catch (Exception ex)
             {
-                errorAction?.Invoke(ex.Message);
+                errorAction?.Invoke("MediaStreamer.IO: " + ex.Message);
             }
             return successfull;
         }
@@ -119,7 +137,7 @@ namespace MediaStreamer.IO
             }
             catch (Exception ex)
             {
-                errorAction?.Invoke(ex.Message);
+                errorAction?.Invoke("MediaStreamer.IO: " + ex.Message);
                 return null;
             }
         }
@@ -266,7 +284,7 @@ namespace MediaStreamer.IO
                 return null;
             }
             catch (Exception ex) {
-                errorAction?.Invoke(ex.Message);
+                errorAction?.Invoke("MediaStreamer.IO: " + ex.Message);
                 return null;
             }
         }

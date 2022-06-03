@@ -9,7 +9,9 @@ namespace MediaStreamer.IO
     {
         public static void ShowFileInExplorer(this string filePath)
         {
-            StartProcess("explorer.exe", null, "/select, " + filePath.Quote());
+            //Process.Start("explorer.exe " + "/select, " + '\"' + filePath.Replace('/', '\\') + '\"');
+            StartProcess("explorer.exe", null, "/select, " + filePath.Replace('/', '\\').Quote()
+                );
         }
         public static Process StartProcess(FileInfo file, params string[] args) => StartProcess(file.FullName, file.DirectoryName, args);
         public static Process StartProcess(string file, string workDir = null, params string[] args)
