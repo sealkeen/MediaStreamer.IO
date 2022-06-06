@@ -30,6 +30,7 @@ namespace MediaStreamer.IO
         /// <returns></returns>
         public Composition DecomposeAudioFile(string fileName, Action<string> errorAction = null)
         {
+            Composition newComposition;
             try
             {
                 $"Passed to decompose: {fileName}, existing : {File.Exists(fileName)}".LogStatically();
@@ -49,9 +50,11 @@ namespace MediaStreamer.IO
                 TimeSpan duration = DMTagExtractor.TryGetDurationFromFile(tfile);
                 long? yearFromFile = DMTagExtractor.TryGetYearFromFile(tfile);
 
-                Composition newComposition;
                 if (string.IsNullOrEmpty(artistFromFile) ||
-                    string.IsNullOrEmpty(titleFromFile)) {
+                    string.IsNullOrEmpty(titleFromFile) ||
+                    artistFromFile == "Unknown" ||
+                    titleFromFile == "Unknown"
+                    ) {
                     System.IO.FileInfo fI = new System.IO.FileInfo(fileName);
                     if ((newComposition = CreateNewComposition(fI.Name, fI.FullName, titleFromFile,
                         artistFromFile, genreFromFile, albumFromFile, duration, yearFromFile)) == null) {
@@ -59,23 +62,23 @@ namespace MediaStreamer.IO
                         $"The file does not have enough information to add a song.".LogStatically();
                         return null;
                     } else {
-                        DMTagEditor.AddArtistToCompositionsSourceFile(newComposition.Artist.ArtistName, newComposition, errorAction);
-                        DMTagEditor.AddTitleToCompositionsSourceFile(newComposition.CompositionName, newComposition, errorAction);
+                        return newComposition;
                     }
+                } else {
+                    $"Adding Artist...".LogStatically();
+                    var artist = DBAccess.AddArtist(artistFromFile, errorAction);
+                    $"Adding Genre...".LogStatically();
+                    var genre = DBAccess.AddGenreToArtist(artist, genreFromFile); //error
+                    $"Adding Album...".LogStatically();
+                    var album = DBAccess.AddAlbum(artist.ArtistName, albumFromFile, yearFromFile, null, null, errorAction);
+                    $"Adding Composition...".LogStatically();
+                    newComposition = DBAccess.AddComposition(artist, album, titleFromFile, duration, fileName, null, false, errorAction);
+                    $"Composition is not null: {newComposition != null}, FilePath ok: {newComposition?.FilePath != null} ".LogStatically();
                 }
-
-                $"Adding Artist...".LogStatically();
-                var artist = DBAccess.AddArtist(artistFromFile, errorAction);
-                $"Adding Genre...".LogStatically();
-                var genre = DBAccess.AddGenreToArtist(artist, genreFromFile); //error
-                $"Adding Album...".LogStatically();
-                var album = DBAccess.AddAlbum(artist.ArtistName, albumFromFile, yearFromFile, null, null, errorAction);
-                $"Adding Composition...".LogStatically();
-                var composition = DBAccess.AddComposition(artist, album, titleFromFile, duration, fileName, null, false, errorAction);
                 DBAccess.DB.SaveChanges();
-
-                $"Composition is not null: {composition != null}, FilePath ok: {composition?.FilePath != null} ".LogStatically();
-                return composition;
+                DMTagEditor.AddArtistToCompositionsSourceFile(newComposition.Artist.ArtistName, newComposition, errorAction);
+                DMTagEditor.AddTitleToCompositionsSourceFile(newComposition.CompositionName, newComposition, errorAction);
+                return newComposition;
             }
             catch (Exception ex)
             {
@@ -123,15 +126,15 @@ namespace MediaStreamer.IO
                 if (artistName.Length < 1 || compositionName.Length < 1)
                     return null;
 
+                $"Adding Artist...".LogStatically();
                 var artist = DBAccess.AddArtist(artistName);
+                $"Adding Genre...".LogStatically();
                 var genre = DBAccess.AddGenreToArtist(artist, genreFromFile);
                 if (artist.ArtistName == null || artist.ArtistName == string.Empty)
                     return null;
-                var album = DBAccess.AddAlbum(artist, genre, albumFromFile, null, null, null, yearFromFile);
+                $"Adding Album...".LogStatically();
+                var album = DBAccess.AddAlbum(artist, genre, albumFromFile, null, null, yearFromFile);
                 var newComposition = DBAccess.AddComposition(artist, album, compositionName, (TimeSpan)duration, fullFileName);
-
-                DMTagEditor.AddTitleToCompositionsSourceFile(compositionName, newComposition);
-                DMTagEditor.AddArtistToCompositionsSourceFile(artistName, newComposition);
 
                 return newComposition;
             }
