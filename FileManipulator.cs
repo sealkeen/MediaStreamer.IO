@@ -2,7 +2,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-//using System.Windows.Forms;
 using MediaStreamer.TagEditing;
 using System.Threading.Tasks;
 using Microsoft.Win32;
@@ -57,13 +56,11 @@ namespace MediaStreamer.IO
                     ) {
                     System.IO.FileInfo fI = new System.IO.FileInfo(fileName);
                     if ((newComposition = CreateNewComposition(fI.Name, fI.FullName, titleFromFile,
-                        artistFromFile, genreFromFile, albumFromFile, duration, yearFromFile)) == null) {
+                        artistFromFile, genreFromFile, albumFromFile, duration, yearFromFile, SimpleLogger.LogStatically)) == null) {
                         errorAction?.Invoke($"The file does not have enough information to add a song.");
                         $"The file does not have enough information to add a song.".LogStatically();
                         return null;
-                    } else {
-                        return newComposition;
-                    }
+                    } 
                 } else {
                     $"Adding Artist...".LogStatically();
                     var artist = DBAccess.AddArtist(artistFromFile, errorAction);
@@ -94,7 +91,7 @@ namespace MediaStreamer.IO
             {
                 foreach (string audioFile in audioFiles)
                 {
-                    successfull = DecomposeAudioFile(audioFile) != null ? true : false;
+                    successfull = DecomposeAudioFile(audioFile, SimpleLogger.LogStatically) != null ? true : false;
                 }
             }
             catch (Exception ex)
@@ -209,13 +206,13 @@ namespace MediaStreamer.IO
                 return fileName;
 
                 string contents = System.Text.Encoding.UTF8.GetString(fileData.DataArray);
-                System.Console.WriteLine("File name chosen: " + fileName);
-                System.Console.WriteLine("File data: " + contents);
+                SimpleLogger.LogStatically("File name chosen: " + fileName);
+                SimpleLogger.LogStatically("File data: " + contents);
             }
             catch (Exception ex)
             {
                 errorAction?.Invoke(ex.Message);
-                System.Console.WriteLine("Exception choosing file: " + ex.ToString());
+                SimpleLogger.LogStatically("Exception choosing file: " + ex.ToString());
                 return ""; 
             }
         }
