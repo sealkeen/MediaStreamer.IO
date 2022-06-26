@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Microsoft.Win32;
 using System.IO;
 using MediaStreamer.Logging;
+using Sealkeen.Abstractions;
 
 namespace MediaStreamer.IO
 {
@@ -16,9 +17,11 @@ namespace MediaStreamer.IO
         //TODO: Implement "Play several songs" cross-platformely
         public IDBRepository DBAccess { get; set; }
         public string WinAmpDir { get; set; }
-        public FileManipulator(IDBRepository iDBAccess)
+        protected ILogger _logger;
+        public FileManipulator(IDBRepository iDBAccess, ILogger logger)
         {
             DBAccess = iDBAccess;
+            _logger = logger;
         }
 
         /// <summary>
@@ -32,16 +35,16 @@ namespace MediaStreamer.IO
             Composition newComposition;
             try
             {
-                $"Passed to decompose: {fileName}, existing : {File.Exists(fileName)}".LogStatically();
+                _logger?.LogInfo($"Passed to decompose: {fileName}, existing : {File.Exists(fileName)}");
                 if (fileName == null || !System.IO.File.Exists(fileName))
                 {
                     return null;
                 }
 
-                $"Creating TagLib".LogStatically();
+                _logger?.LogInfo($"Creating TagLib");
                 var tfile = TagLib.File.Create($"{fileName}");
 
-                $"Fetching data from file...".LogStatically();
+                _logger?.LogInfo($"Fetching data from file...");
                 string artistFromFile = DMTagExtractor.TryGetArtistNameFromFile(tfile, errorAction);
                 string genreFromFile = DMTagExtractor.TryGetGenreFromFile(tfile, errorAction);
                 string titleFromFile = DMTagExtractor.TryGetTitleFromFile(tfile);
@@ -56,21 +59,21 @@ namespace MediaStreamer.IO
                     ) {
                     System.IO.FileInfo fI = new System.IO.FileInfo(fileName);
                     if ((newComposition = CreateNewComposition(fI.Name, fI.FullName, titleFromFile,
-                        artistFromFile, genreFromFile, albumFromFile, duration, yearFromFile, SimpleLogger.LogStatically)) == null) {
-                        errorAction?.Invoke($"The file does not have enough information to add a song.");
-                        $"The file does not have enough information to add a song.".LogStatically();
+                        artistFromFile, genreFromFile, albumFromFile, duration, yearFromFile)) == null) {
+                        _logger?.LogError($"The file does not have enough information to add a song.");
+                        _logger?.LogError($"The file does not have enough information to add a song.");
                         return null;
                     } 
                 } else {
-                    $"Adding Artist...".LogStatically();
+                    _logger?.LogInfo($"Adding Artist...");
                     var artist = DBAccess.AddArtist(artistFromFile, errorAction);
-                    $"Adding Genre...".LogStatically();
+                    _logger?.LogInfo($"Adding Genre...");
                     var genre = DBAccess.AddGenreToArtist(artist, genreFromFile); //error
-                    $"Adding Album...".LogStatically();
+                    _logger?.LogInfo($"Adding Album...");
                     var album = DBAccess.AddAlbum(artist.ArtistName, albumFromFile, yearFromFile, null, null, errorAction);
-                    $"Adding Composition...".LogStatically();
+                    _logger?.LogInfo($"Adding Composition...");
                     newComposition = DBAccess.AddComposition(artist, album, titleFromFile, duration, fileName, null, false, errorAction);
-                    $"Composition is not null: {newComposition != null}, FilePath ok: {newComposition?.FilePath != null} ".LogStatically();
+                    _logger?.LogInfo($"Composition is not null: {newComposition != null}, FilePath ok: {newComposition?.FilePath != null} ");
                 }
                 DBAccess.DB.SaveChanges();
                 DMTagEditor.AddArtistToCompositionsSourceFile(newComposition.Artist.ArtistName, newComposition, errorAction);
@@ -79,7 +82,7 @@ namespace MediaStreamer.IO
             }
             catch (Exception ex)
             {
-                errorAction?.Invoke("MediaStreamer.IO: " + ex.Message);
+                _logger?.LogError("MediaStreamer.IO: " + ex.Message);
                 return null;
             }
         }
@@ -91,12 +94,12 @@ namespace MediaStreamer.IO
             {
                 foreach (string audioFile in audioFiles)
                 {
-                    successfull = DecomposeAudioFile(audioFile, SimpleLogger.LogStatically) != null ? true : false;
+                    successfull = DecomposeAudioFile(audioFile, _logger?.GetLogInfoOrReturnNull()) != null ? true : false;
                 }
             }
             catch (Exception ex)
             {
-                errorAction?.Invoke("MediaStreamer.IO: " + ex.Message);
+                _logger?.LogError("MediaStreamer.IO: " + ex.Message);
             }
             return successfull;
         }
@@ -123,13 +126,13 @@ namespace MediaStreamer.IO
                 if (artistName.Length < 1 || compositionName.Length < 1)
                     return null;
 
-                $"Adding Artist...".LogStatically();
+                _logger?.LogInfo($"Adding Artist...");
                 var artist = DBAccess.AddArtist(artistName);
-                $"Adding Genre...".LogStatically();
+                _logger?.LogInfo($"Adding Genre...");
                 var genre = DBAccess.AddGenreToArtist(artist, genreFromFile);
                 if (artist.ArtistName == null || artist.ArtistName == string.Empty)
                     return null;
-                $"Adding Album...".LogStatically();
+                _logger?.LogInfo($"Adding Album...");
                 var album = DBAccess.AddAlbum(artist, genre, albumFromFile, null, null, yearFromFile);
                 var newComposition = DBAccess.AddComposition(artist, album, compositionName, (TimeSpan)duration, fullFileName);
 
@@ -137,7 +140,7 @@ namespace MediaStreamer.IO
             }
             catch (Exception ex)
             {
-                errorAction?.Invoke("MediaStreamer.IO: " + ex.Message);
+                _logger?.LogError("MediaStreamer.IO: " + ex.Message);
                 return null;
             }
         }
@@ -206,13 +209,13 @@ namespace MediaStreamer.IO
                 return fileName;
 
                 string contents = System.Text.Encoding.UTF8.GetString(fileData.DataArray);
-                SimpleLogger.LogStatically("File name chosen: " + fileName);
-                SimpleLogger.LogStatically("File data: " + contents);
+                _logger?.LogInfo("File name chosen: " + fileName);
+                _logger?.LogInfo("File data: " + contents);
             }
             catch (Exception ex)
             {
-                errorAction?.Invoke(ex.Message);
-                SimpleLogger.LogStatically("Exception choosing file: " + ex.ToString());
+                _logger?.LogError(ex.Message);
+                _logger?.LogError("Exception choosing file: " + ex.ToString());
                 return ""; 
             }
         }
@@ -265,7 +268,7 @@ namespace MediaStreamer.IO
             }
             catch (Exception ex)
             {
-                errorAction?.Invoke(ex.Message);
+                _logger?.LogError(ex.Message);
                 return null;
             }
         }
@@ -284,7 +287,7 @@ namespace MediaStreamer.IO
                 return null;
             }
             catch (Exception ex) {
-                errorAction?.Invoke("MediaStreamer.IO: " + ex.Message);
+                _logger?.LogError("MediaStreamer.IO: " + ex.Message);
                 return null;
             }
         }
@@ -336,7 +339,7 @@ namespace MediaStreamer.IO
             //}
             //catch (Exception ex)
             //{
-            //    errorAction?.Invoke(ex.Message);
+            //    _logger?.LogError(ex.Message);
             //}
         }
     }
