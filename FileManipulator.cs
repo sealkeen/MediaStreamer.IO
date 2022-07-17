@@ -61,7 +61,6 @@ namespace MediaStreamer.IO
                     if ((newComposition = CreateNewComposition(fI.Name, fI.FullName, titleFromFile,
                         artistFromFile, genreFromFile, albumFromFile, duration, yearFromFile)) == null) {
                         _logger?.LogError($"The file does not have enough information to add a song.");
-                        _logger?.LogError($"The file does not have enough information to add a song.");
                         return null;
                     } 
                 } else {
@@ -145,7 +144,7 @@ namespace MediaStreamer.IO
             }
         }
 
-        private static string ResolveArtistTitleConflicts(string fileName, string titleFromMetaD, string artistFromMetaD, ref string artistName, ref string compositionName)
+        private string ResolveArtistTitleConflicts(string fileName, string titleFromMetaD, string artistFromMetaD, ref string artistName, ref string compositionName)
         {
             string divider;
             if (fileName.Contains(divider = "-") || fileName.Contains(divider = "—"))
@@ -206,11 +205,11 @@ namespace MediaStreamer.IO
                 if (fileData == null)
                     return ""; // user canceled file picking
                 string fileName = fileData.FilePath;
-                return fileName;
 
-                string contents = System.Text.Encoding.UTF8.GetString(fileData.DataArray);
-                _logger?.LogInfo("File name chosen: " + fileName);
-                _logger?.LogInfo("File data: " + contents);
+                //string contents = System.Text.Encoding.UTF8.GetString(fileData.DataArray);
+                //_logger?.LogInfo("File data: " + contents);
+                //_logger?.LogInfo("File name chosen: " + fileName);
+                return fileName;
             }
             catch (Exception ex)
             {
@@ -283,64 +282,13 @@ namespace MediaStreamer.IO
                 return fileData.Result.FileNames;
             }
             catch (NullReferenceException nre) {
-                // User canceled file picking
+                _logger?.LogTrace("User canceled file picking: " + nre.Message);
                 return null;
             }
             catch (Exception ex) {
                 _logger?.LogError("MediaStreamer.IO: " + ex.Message);
                 return null;
             }
-        }
-
-        public void PlaySeveralSongs(System.Collections.IList selectedItems, Type itemType, Action<string> errorAction = null)
-        {
-            //try
-            //{
-            //    if (selectedItems.Count <= 0)
-            //    {
-            //        return;
-            //    }
-
-            //    if (!WinAmpDir.FileExistsOrValidURL())
-            //    {
-            //        WinAmpDir = @"C:\Program Files (x86)\Winamp\winamp.exe";
-            //        OpenFileDialog openFileDialog = new OpenFileDialog();
-            //        if (openFileDialog.ShowDialog() == DialogResult.OK)
-            //        {
-            //            if(openFileDialog.FileName.FileExistsOrValidURL())
-            //                WinAmpDir = openFileDialog.FileName;
-            //        }
-            //    }
-
-            //    for (int index = 0; index < selectedItems.Count; index++)
-            //    {
-            //        string path = "";
-            //        if (itemType.Name == "Composition" || itemType == null)
-            //        {
-            //            var cmp = (Composition)selectedItems[index];
-            //            path = cmp.FilePath;
-            //        }
-            //        else
-            //        {
-            //            if (itemType.Name == "ListenedComposition")
-            //            {
-            //                var cmp = (ListenedComposition)selectedItems[index];
-            //                path = cmp.Composition.FilePath;
-            //                DBAccess.AddNewListenedComposition(cmp.Composition, cmp.User);
-            //            }
-            //            else
-            //            {
-            //                throw new ArgumentException("Unknown item type of a song collection passed as an argument.");
-            //            }
-            //        }
-
-            //        Process.Start($"{WinAmpDir}", $"\"{path}\"");
-            //    }
-            //}
-            //catch (Exception ex)
-            //{
-            //    _logger?.LogError(ex.Message);
-            //}
         }
     }
 }
