@@ -11,17 +11,60 @@ using Sealkeen.Abstractions;
 
 namespace MediaStreamer.IO
 {
-    public class FileManipulator
+    public class FileManipulator : IFileManipulator
     {
         //TODO: Split long methods into several parts
         //TODO: Implement "Play several songs" cross-platformely
         public IDBRepository DBAccess { get; set; }
         public string WinAmpDir { get; set; }
         protected ILogger _logger;
+        public static bool MoveFileToArtistDirectory = false;
         public FileManipulator(IDBRepository iDBAccess, ILogger logger)
         {
             DBAccess = iDBAccess;
             _logger = logger;
+        }
+
+        private static string TryMoveFileToArtistDirectory(string fileName, string artistFromFile, string titleFromFile,
+            Action<string> errorAction = null)
+        {
+            return fileName;
+            try
+            {
+                string parentDirectory = new FileInfo(fileName).Directory.Parent.FullName;
+                var newDirectory = Path.Combine(parentDirectory, artistFromFile);
+                if (!Directory.Exists(newDirectory))
+                    Directory.CreateDirectory(newDirectory);
+                string newFileName = Path.Combine(newDirectory + $"{artistFromFile}/{titleFromFile}" + YearAsTime() + GetExtension(fileName));
+                File.Move(fileName, newFileName);
+                fileName = newFileName;
+                errorAction?.Invoke($" TryMoveFileToArtistDirectory: file moved: {newFileName}");
+            }
+            catch { }
+            errorAction?.Invoke($" TryMoveFileToArtistDirectory: file not moved, returning... ");
+
+            return fileName;
+        }
+
+        private static string GetExtension(string fileName)
+        {
+            if (fileName.IndexOf('.') > 0)
+            {
+                bool correctExtension = false;
+                for (int i = fileName.Length - 1; i > fileName.IndexOf('.'); i--)
+                {
+                    if (!char.IsLetterOrDigit(fileName[i]))
+                        correctExtension = false;
+                }
+                if (correctExtension)
+                    return Path.GetExtension(fileName);
+            }
+            return ".mp3";
+        }
+
+        private static string YearAsTime()
+        {
+            return $" ({DateTime.Now.Hour.ToString().PadLeft(2, '0')}{DateTime.Now.Minute.ToString().PadLeft(2, '0')})";
         }
 
         /// <summary>
@@ -36,15 +79,18 @@ namespace MediaStreamer.IO
             try
             {
                 _logger?.LogInfo($"Passed to decompose: {fileName}, existing : {File.Exists(fileName)}");
+                errorAction?.Invoke($"Passed to decompose: {fileName}, existing : {File.Exists(fileName)}");
                 if (fileName == null || !System.IO.File.Exists(fileName))
                 {
                     return null;
                 }
 
                 _logger?.LogInfo($"Creating TagLib");
+                errorAction?.Invoke($"Creating TagLib");
                 var tfile = TagLib.File.Create($"{fileName}");
 
                 _logger?.LogInfo($"Fetching data from file...");
+                errorAction?.Invoke($"Fetching data from file...");
                 string artistFromFile = DMTagExtractor.TryGetArtistNameFromFile(tfile, errorAction);
                 string genreFromFile = DMTagExtractor.TryGetGenreFromFile(tfile, errorAction);
                 string titleFromFile = DMTagExtractor.TryGetTitleFromFile(tfile);
@@ -60,19 +106,28 @@ namespace MediaStreamer.IO
                     System.IO.FileInfo fI = new System.IO.FileInfo(fileName);
                     if ((newComposition = CreateNewComposition(fI.Name, fI.FullName, titleFromFile,
                         artistFromFile, genreFromFile, albumFromFile, duration, yearFromFile)) == null) {
+                        errorAction?.Invoke($"The file does not have enough information to add a song.");
                         _logger?.LogError($"The file does not have enough information to add a song.");
                         return null;
-                    } 
+                    }
                 } else {
                     _logger?.LogInfo($"Adding Artist...");
+                    errorAction?.Invoke($"Adding Artist...");
                     var artist = DBAccess.AddArtist(artistFromFile, errorAction);
                     _logger?.LogInfo($"Adding Genre...");
-                    var genre = DBAccess.AddGenreToArtist(artist, genreFromFile); //error
+                    errorAction?.Invoke($"Adding Genre...");
+                    var genre = DBAccess.AddGenreToArtist(artist, genreFromFile, errorAction); //error
                     _logger?.LogInfo($"Adding Album...");
+                    errorAction?.Invoke($"Adding Album...");
                     var album = DBAccess.AddAlbum(artist.ArtistName, albumFromFile, yearFromFile, null, null, errorAction);
                     _logger?.LogInfo($"Adding Composition...");
+                    errorAction?.Invoke($"Adding Composition...");
+                    if (MoveFileToArtistDirectory)
+                        fileName = TryMoveFileToArtistDirectory(fileName, artistFromFile, titleFromFile);
+
                     newComposition = DBAccess.AddComposition(artist, album, titleFromFile, duration, fileName, null, false, errorAction);
                     _logger?.LogInfo($"Composition is not null: {newComposition != null}, FilePath ok: {newComposition?.FilePath != null} ");
+                    errorAction?.Invoke($"Composition is not null: {newComposition != null}, FilePath ok: {newComposition?.FilePath != null} ");
                 }
                 DBAccess.DB.SaveChanges();
                 DMTagEditor.AddArtistToCompositionsSourceFile(newComposition.Artist.ArtistName, newComposition, errorAction);
@@ -81,7 +136,8 @@ namespace MediaStreamer.IO
             }
             catch (Exception ex)
             {
-                _logger?.LogError("MediaStreamer.IO: " + ex.Message);
+                _logger?.LogError("MediaStreamer.IO: " + ex.ToString() + ex.Message);
+                errorAction?.Invoke("MediaStreamer.IO: " + ex.ToString() + ex.Message);
                 return null;
             }
         }
@@ -99,6 +155,7 @@ namespace MediaStreamer.IO
             catch (Exception ex)
             {
                 _logger?.LogError("MediaStreamer.IO: " + ex.Message);
+                errorAction?.Invoke("MediaStreamer.IO: " + ex.Message);
             }
             return successfull;
         }
@@ -119,32 +176,58 @@ namespace MediaStreamer.IO
                 string artistName = ""; string compositionName = "";
 
                 ResolveArtistTitleConflicts(fileName, titleFromFile, artistFromFile, ref artistName, ref compositionName);
-
-                compositionName = ExcludeExtension(compositionName);
-
-                if (artistName.Length < 1 || compositionName.Length < 1)
+                if (artistName.Length < 1 || compositionName.Length < 1) {
+                    errorAction?.Invoke("The  artist / title are less than zero, returning...");
                     return null;
+                }
+                var compProps = ExcludeYearIfExists(ExcludeExtension(compositionName));
+                compositionName = compProps.GetName();
+                yearFromFile = yearFromFile ?? compProps.GetYear();
 
                 _logger?.LogInfo($"Adding Artist...");
-                var artist = DBAccess.AddArtist(artistName);
+                var artist = DBAccess.AddArtist(artistName, errorAction);
                 _logger?.LogInfo($"Adding Genre...");
-                var genre = DBAccess.AddGenreToArtist(artist, genreFromFile);
+                var genre = DBAccess.AddGenreToArtist(artist, genreFromFile, errorAction);
                 if (artist.ArtistName == null || artist.ArtistName == string.Empty)
                     return null;
                 _logger?.LogInfo($"Adding Album...");
-                var album = DBAccess.AddAlbum(artist, genre, albumFromFile, null, null, yearFromFile);
-                var newComposition = DBAccess.AddComposition(artist, album, compositionName, (TimeSpan)duration, fullFileName);
+                var album = DBAccess.AddAlbum(artist, genre, albumFromFile, null, null, yearFromFile, errorAction);
+                _logger?.LogInfo($"Adding Composition...");
+
+                if (MoveFileToArtistDirectory) {
+                    fullFileName = TryMoveFileToArtistDirectory(fullFileName, artistFromFile, titleFromFile, errorAction);
+                }
+
+                var newComposition = DBAccess.AddComposition(artist, album, compositionName, (TimeSpan)duration, fullFileName, yearFromFile, false, errorAction);
 
                 return newComposition;
             }
             catch (Exception ex)
             {
                 _logger?.LogError("MediaStreamer.IO: " + ex.Message);
+                errorAction?.Invoke("MediaStreamer.IO: " + ex.Message);
                 return null;
             }
         }
 
-        private string ResolveArtistTitleConflicts(string fileName, string titleFromMetaD, string artistFromMetaD, ref string artistName, ref string compositionName)
+        private static NameAndYear ExcludeYearIfExists(string compositionName)
+        {
+            var result = new NameAndYear();
+            if (compositionName.Length != 0 && compositionName.Length > 6)
+            {
+                var year = compositionName.TrimEnd().Substring(compositionName.Length - 6, 6);
+                var noYearName = compositionName.TrimEnd().Substring(0, compositionName.Length - year.Length);
+                if (year[0] == '(' && year[year.Length - 1] == ')')
+                    result.Name = noYearName.Trim();
+                result.Year = year.Trim('(').Trim(')');
+            } else {
+                result.Name = compositionName;
+                result.Year = "";
+            }
+            return result;
+        }
+
+        public string ResolveArtistTitleConflicts(string fileName, string titleFromMetaD, string artistFromMetaD, ref string artistName, ref string compositionName)
         {
             string divider;
             if (fileName.Contains(divider = "-") || fileName.Contains(divider = "—"))

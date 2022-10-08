@@ -2,7 +2,6 @@
 
   <PropertyGroup>
     <TargetFrameworks>netcoreapp3.1; net40</TargetFrameworks>
-	  <UseWindowsForms>true</UseWindowsForms>
 	  <StartupObject />
   </PropertyGroup>
 
@@ -13,7 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\XamarinFilePicker\FilePicker-Plugin-for-Xamarin-and-Windows\src\Plugin.FilePicker\Plugin.FilePicker.csproj" />
-    <ProjectReference Include="..\LinqExtensions\LinqExtensions.csproj" />
+    <ProjectReference Include="..\Sealkeen.Linq.Extensions\Sealkeen.Linq.Extensions.csproj" />
     <ProjectReference Include="..\MediaStreamer.Domain\MediaStreamer.Domain.csproj" />
     <ProjectReference Include="..\MediaStreamer.Logging\MediaStreamer.Logging.csproj" />
     <ProjectReference Include="..\MediaStreamer.TagEditor\MediaStreamer.TagEditor.csproj" />
@@ -28,8 +27,6 @@
     <!--<HintPath>..\..\XamarinFilePicker\FilePicker-Plugin-for-Xamarin-and-Windows\src\Plugin.FilePicker\bin\Release\net40\Plugin.FilePicker.Net40.dll</HintPath>-->
 		<HintPath>..\..\XamarinFilePicker\FilePicker-Plugin-for-Xamarin-and-Windows\src\Plugin.FilePicker\bin\Release\net40\Plugin.FilePicker.dll</HintPath>
     </Reference>
-	<Reference Include="PresentationFramework" />
-	<Reference Include="System.Windows.Forms" />
 	<PackageReference Include="Microsoft.Bcl.Async" Version="1.0.168" />
   </ItemGroup>
 
