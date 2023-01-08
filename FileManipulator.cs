@@ -15,15 +15,14 @@ namespace MediaStreamer.IO
     {
         //TODO: Split long methods into several parts
         //TODO: Implement "Play several songs" cross-platformely
-        public IDBRepository DBAccess { get; set; }
-        public string WinAmpDir { get; set; }
-        protected ILogger _logger;
-        public static bool MoveFileToArtistDirectory = false;
         public FileManipulator(IDBRepository iDBAccess, ILogger logger)
         {
             DBAccess = iDBAccess;
             _logger = logger;
         }
+        public IDBRepository DBAccess { get; set; }
+        protected ILogger _logger;
+        public static bool MoveFileToArtistDirectory = false;
 
         private static string TryMoveFileToArtistDirectory(string fileName, string artistFromFile, string titleFromFile,
             Action<string> errorAction = null)
@@ -213,7 +212,9 @@ namespace MediaStreamer.IO
         private static NameAndYear ExcludeYearIfExists(string compositionName)
         {
             var result = new NameAndYear();
-            if (compositionName.Length != 0 && compositionName.Length > 6)
+            var cName = compositionName.Trim();
+            int cLength = cName.Length - 1;
+            if ( cLength != 0 && cLength > 6 && HasYear(cName) )
             {
                 var year = compositionName.TrimEnd().Substring(compositionName.Length - 6, 6);
                 var noYearName = compositionName.TrimEnd().Substring(0, compositionName.Length - year.Length);
@@ -225,6 +226,27 @@ namespace MediaStreamer.IO
                 result.Year = "";
             }
             return result;
+        }
+
+        private static bool HasYear(string cName)
+        {
+            if (!string.IsNullOrEmpty(cName))
+            {
+                const int charsInYear = 4;
+                var noBrackets = cName.Trim().Replace(")", "").Replace("(", "");
+                var last4Char = noBrackets.Substring(noBrackets.Length - charsInYear, charsInYear);
+                if (AreAllDigits(last4Char))
+                    return true;
+            }
+            return false;
+        }
+
+        private static bool AreAllDigits(string possibleDigits)
+        {
+            for(int i = 0; i < possibleDigits.Length; i++)
+                if(!char.IsDigit(possibleDigits[i]))
+                    return false;
+            return true;
         }
 
         public string ResolveArtistTitleConflicts(string fileName, string titleFromMetaD, string artistFromMetaD, ref string artistName, ref string compositionName)
@@ -302,40 +324,33 @@ namespace MediaStreamer.IO
             }
         }
 
-        public string ExcludeExtension(string withPossibleExtension)
+        public string ExcludeExtension(string source)
         {
             var dotIndex = -1;
             int extensionWithDotLength = 0;
-            for (int i = withPossibleExtension.Length - 1; i >= 0; i--)
-            {
+            for (int i = source.Length - 1; i >= 0; i--) {
                 extensionWithDotLength++;
-                if (withPossibleExtension[i] == '.')
-                {
+                if (source[i] == '.') {
                     if (extensionWithDotLength < 2)
-                        return withPossibleExtension;
+                        return source;
                     dotIndex = i;
                     break;
                 }
                 if (
-                    (withPossibleExtension[i] < 'a' ||
-                    withPossibleExtension[i] > 'z')
-                    &&
-                    (withPossibleExtension[i] > 'Z' ||
-                    withPossibleExtension[i] < 'A')
-                    &&
-                    (withPossibleExtension[i] < '0' ||
-                    withPossibleExtension[i] > '9')
+                    (source[i] < 'a' || source[i] > 'z') &&
+                    (source[i] > 'Z' || source[i] < 'A') &&
+                    (source[i] < '0' || source[i] > '9')
                 )
-                    return withPossibleExtension;
+                    return source;
             }
 
-            int withoutExtensionLength = withPossibleExtension.Length - extensionWithDotLength;
+            int withoutExtensionLength = source.Length - extensionWithDotLength;
 
             if (extensionWithDotLength > 5)
-                return withPossibleExtension;
-            //because there is no audio extension with more then 4 symbols
+                return source;
+            // Because there is probably no audio extension with more then 5 symbols at the moment
 
-            return withPossibleExtension.Substring(0, withoutExtensionLength);
+            return source.Substring(0, withoutExtensionLength);
         }
 
         public async Task<string> OpenAudioFileCrossPlatform(Action<string> errorAction = null)
