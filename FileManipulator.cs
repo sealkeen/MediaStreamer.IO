@@ -11,7 +11,7 @@ using Sealkeen.Abstractions;
 
 namespace MediaStreamer.IO
 {
-    public class FileManipulator
+    public class FileManipulator : IFileManipulator
     {
         //TODO: Split long methods into several parts
         //TODO: Implement "Play several songs" cross-platformely
@@ -145,7 +145,7 @@ namespace MediaStreamer.IO
             }
         }
 
-        private static string ResolveArtistTitleConflicts(string fileName, string titleFromMetaD, string artistFromMetaD, ref string artistName, ref string compositionName)
+        public string ResolveArtistTitleConflicts(string fileName, string titleFromMetaD, string artistFromMetaD, ref string artistName, ref string compositionName)
         {
             string divider;
             if (fileName.Contains(divider = "-") || fileName.Contains(divider = "—"))
