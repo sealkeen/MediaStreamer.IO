@@ -370,6 +370,7 @@ namespace MediaStreamer.IO
             }
         }
 
+        [Obsolete("!!!ADD Filenames array [] !!!")]
         public List<string> OpenAudioFilesCrossPlatform(Action<string> errorAction = null)
         {
             try {
@@ -377,7 +378,8 @@ namespace MediaStreamer.IO
                 if (fileData == null)
                     return null; // user canceled file picking
                 fileData.Wait(); // await is not awailable in .Net Framework 4.0 IDEs
-                return fileData.Result.FileNames;
+                #warning TODO: ... FileNames ... !!!
+                return new List<string>() { fileData.Result.FileName };
             }
             catch (NullReferenceException nre) {
                 _logger?.LogTrace("User canceled file picking: " + nre.Message);
