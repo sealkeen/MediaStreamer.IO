@@ -21,7 +21,6 @@
     <ProjectReference Include="..\MediaStreamer.TagEditor\MediaStreamer.TagEditor.csproj" />
     <ProjectReference Include="..\Sealkeen.Abstractions\Sealkeen.Abstractions.csproj" />
     <ProjectReference Include="..\StringExtensions\StringExtensions.csproj" />
-    <ProjectReference Include="..\taglib-sharp\src\TaglibSharp\TaglibSharp.csproj" />
   </ItemGroup>
 
   <!--<ItemGroup Condition="'$(TargetFramework)' == 'net40'">
