@@ -249,7 +249,19 @@ namespace MediaStreamer.IO
             return true;
         }
 
-        public string ResolveArtistTitleConflicts(string fileName, string titleFromMetaD, string artistFromMetaD, ref string artistName, ref string compositionName)
+        public (string Artist, string Title) GetSongArtistAndTitle(string fileName)
+        { 
+            string metaArtist, metaTitle, resultArtist = null, resultTitle = null;
+            ResolveArtistTitleConflicts(fileName,
+                null,
+                null,
+                ref resultArtist,
+                ref resultTitle);
+
+            return (resultArtist, resultTitle);
+        }
+
+        public string ResolveArtistTitleConflicts(string fileName, string titleFromMetaD, string artistFromMetaD, ref string resultArtist, ref string resultTitle)
         {
             string divider;
             if (fileName.Contains(divider = "-") || fileName.Contains(divider = "—"))
@@ -257,8 +269,8 @@ namespace MediaStreamer.IO
                 int firstPartLength = fileName.IndexOf(divider);
                 int secondPartStart = fileName.IndexOf(divider) + 1;
 
-                artistName = fileName.Substring(0, firstPartLength);
-                compositionName = fileName.Substring(secondPartStart);
+                resultArtist = fileName.Substring(0, firstPartLength);
+                resultTitle = fileName.Substring(secondPartStart);
             }
             else
             {
@@ -269,34 +281,34 @@ namespace MediaStreamer.IO
             {
                 if (divider != null)
                 {
-                    artistName = artistName.TrimStart(divider.ToCharArray()[0]).TrimStart(' ');
-                    artistName = artistName.TrimEnd(divider.ToCharArray()[0]).TrimEnd(' ');
+                    resultArtist = resultArtist.TrimStart(divider.ToCharArray()[0]).TrimStart(' ');
+                    resultArtist = resultArtist.TrimEnd(divider.ToCharArray()[0]).TrimEnd(' ');
                 }
                 else
                 {
-                    artistName = "unknown";
+                    resultArtist = "unknown";
                 }
             }
             else
             {
-                artistName = artistFromMetaD;
+                resultArtist = artistFromMetaD;
             }
 
             if (titleFromMetaD == null || titleFromMetaD.ToLower() == "unknown")
             {
                 if (divider != null)
                 {
-                    compositionName = compositionName.TrimStart(divider.ToCharArray()[0]).TrimStart(' ');
-                    compositionName = compositionName.TrimEnd(divider.ToCharArray()[0]).TrimEnd(' ');
+                    resultTitle = resultTitle.TrimStart(divider.ToCharArray()[0]).TrimStart(' ');
+                    resultTitle = resultTitle.TrimEnd(divider.ToCharArray()[0]).TrimEnd(' ');
                 }
                 else
                 {
-                    compositionName = fileName;
+                    resultTitle = fileName;
                 }
             }
             else
             {
-                compositionName = titleFromMetaD;
+                resultTitle = titleFromMetaD;
             }
 
             return divider;
