@@ -1,12 +1,10 @@
-﻿using MediaStreamer.Domain;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using MediaStreamer.TagEditing;
-using System.Threading.Tasks;
-using Microsoft.Win32;
 using System.IO;
+using System.Threading.Tasks;
+using MediaStreamer.Domain;
 using MediaStreamer.Logging;
+using MediaStreamer.TagEditing;
 using Sealkeen.Abstractions;
 
 namespace MediaStreamer.IO
@@ -101,15 +99,19 @@ namespace MediaStreamer.IO
                     string.IsNullOrEmpty(titleFromFile) ||
                     artistFromFile == "Unknown" ||
                     titleFromFile == "Unknown"
-                    ) {
+                    )
+                {
                     System.IO.FileInfo fI = new System.IO.FileInfo(fileName);
                     if ((newComposition = CreateNewComposition(fI.Name, fI.FullName, titleFromFile,
-                        artistFromFile, genreFromFile, albumFromFile, duration, yearFromFile)) == null) {
+                        artistFromFile, genreFromFile, albumFromFile, duration, yearFromFile)) == null)
+                    {
                         errorAction?.Invoke($"The file does not have enough information to add a song.");
                         _logger?.LogError($"The file does not have enough information to add a song.");
                         return null;
                     }
-                } else {
+                }
+                else
+                {
                     _logger?.LogInfo($"Adding Artist...");
                     errorAction?.Invoke($"Adding Artist...");
                     var artist = DBAccess.AddArtist(artistFromFile, errorAction);
@@ -175,7 +177,8 @@ namespace MediaStreamer.IO
                 string artistName = ""; string compositionName = "";
 
                 ResolveArtistTitleConflicts(fileName, titleFromFile, artistFromFile, ref artistName, ref compositionName);
-                if (artistName.Length < 1 || compositionName.Length < 1) {
+                if (artistName.Length < 1 || compositionName.Length < 1)
+                {
                     errorAction?.Invoke("The  artist / title are less than zero, returning...");
                     return null;
                 }
@@ -193,7 +196,8 @@ namespace MediaStreamer.IO
                 var album = DBAccess.AddAlbum(artist, genre, albumFromFile, null, null, yearFromFile, errorAction);
                 _logger?.LogInfo($"Adding Composition...");
 
-                if (MoveFileToArtistDirectory) {
+                if (MoveFileToArtistDirectory)
+                {
                     fullFileName = TryMoveFileToArtistDirectory(fullFileName, artistFromFile, titleFromFile, errorAction);
                 }
 
@@ -214,14 +218,16 @@ namespace MediaStreamer.IO
             var result = new NameAndYear();
             var cName = compositionName.Trim();
             int cLength = cName.Length - 1;
-            if ( cLength != 0 && cLength > 6 && HasYear(cName) )
+            if (cLength != 0 && cLength > 6 && HasYear(cName))
             {
                 var year = compositionName.TrimEnd().Substring(compositionName.Length - 6, 6);
                 var noYearName = compositionName.TrimEnd().Substring(0, compositionName.Length - year.Length);
                 if (year[0] == '(' && year[year.Length - 1] == ')')
                     result.Name = noYearName.Trim();
                 result.Year = year.Trim('(').Trim(')');
-            } else {
+            }
+            else
+            {
                 result.Name = compositionName;
                 result.Year = "";
             }
@@ -243,14 +249,14 @@ namespace MediaStreamer.IO
 
         private static bool AreAllDigits(string possibleDigits)
         {
-            for(int i = 0; i < possibleDigits.Length; i++)
-                if(!char.IsDigit(possibleDigits[i]))
+            for (int i = 0; i < possibleDigits.Length; i++)
+                if (!char.IsDigit(possibleDigits[i]))
                     return false;
             return true;
         }
 
         public (string Artist, string Title) GetSongArtistAndTitle(string fileName)
-        { 
+        {
             string metaArtist, metaTitle, resultArtist = null, resultTitle = null;
             ResolveArtistTitleConflicts(fileName,
                 null,
@@ -314,14 +320,13 @@ namespace MediaStreamer.IO
             return divider;
         }
 
-        public async Task<string> GetOpenedDatabasePathAsync(Action<string> errorAction = null)
+        public async Task<string> GetOpenedDatabasePathAsync(IFilePicker filePicker, Action<string> errorAction = null)
         {
             try
             {
-                Plugin.FilePicker.Abstractions.FileData fileData = await Plugin.FilePicker.CrossFilePicker.Current.PickFile();
-                if (fileData == null)
-                    return ""; // user canceled file picking
-                string fileName = fileData.FilePath;
+                string fileName = await filePicker.PickFile();
+                if (fileName == null)
+                    return null;
 
                 //string contents = System.Text.Encoding.UTF8.GetString(fileData.DataArray);
                 //_logger?.LogInfo("File data: " + contents);
@@ -332,7 +337,7 @@ namespace MediaStreamer.IO
             {
                 _logger?.LogError(ex.Message);
                 _logger?.LogError("Exception choosing file: " + ex.ToString());
-                return ""; 
+                return "";
             }
         }
 
@@ -340,9 +345,11 @@ namespace MediaStreamer.IO
         {
             var dotIndex = -1;
             int extensionWithDotLength = 0;
-            for (int i = source.Length - 1; i >= 0; i--) {
+            for (int i = source.Length - 1; i >= 0; i--)
+            {
                 extensionWithDotLength++;
-                if (source[i] == '.') {
+                if (source[i] == '.')
+                {
                     if (extensionWithDotLength < 2)
                         return source;
                     dotIndex = i;
@@ -365,15 +372,15 @@ namespace MediaStreamer.IO
             return source.Substring(0, withoutExtensionLength);
         }
 
-        public async Task<string> OpenAudioFileCrossPlatform(Action<string> errorAction = null)
+        public async Task<string> OpenAudioFileCrossPlatform(IFilePicker filePicker, Action<string> errorAction = null)
         {
             try
             {
-                var fileData = Plugin.FilePicker.CrossFilePicker.Current.PickFile();
-                if (fileData == null)
-                    return null; // user canceled file picking
-                fileData.Wait(); // await is not awailable in .Net Framework 4.0 IDEs
-                return fileData.Result.FilePath;
+                string fileName = await filePicker.PickFile();
+                if (fileName == null)
+                    return null;
+
+                return fileName;
             }
             catch (Exception ex)
             {
@@ -383,21 +390,25 @@ namespace MediaStreamer.IO
         }
 
         [Obsolete("!!!ADD Filenames array [] !!!")]
-        public List<string> OpenAudioFilesCrossPlatform(Action<string> errorAction = null)
+        public List<string> OpenAudioFilesCrossPlatform(IFilePicker filePicker, Action<string> errorAction = null)
         {
-            try {
-                var fileData = Plugin.FilePicker.CrossFilePicker.Current.PickFile();
-                if (fileData == null)
-                    return null; // user canceled file picking
-                fileData.Wait(); // await is not awailable in .Net Framework 4.0 IDEs
-                #warning TODO: ... FileNames ... !!!
-                return new List<string>() { fileData.Result.FileName };
+            try
+            {
+                Task<string> fileName = filePicker.PickFile();
+                fileName.Wait();
+
+                if (fileName.Result == null)
+                    return null;
+
+                return new List<string>() { fileName.Result };
             }
-            catch (NullReferenceException nre) {
+            catch (NullReferenceException nre)
+            {
                 _logger?.LogTrace("User canceled file picking: " + nre.Message);
                 return null;
             }
-            catch (Exception ex) {
+            catch (Exception ex)
+            {
                 _logger?.LogError("MediaStreamer.IO: " + ex.Message);
                 return null;
             }
